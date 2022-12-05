@@ -213,7 +213,8 @@ FROM tb_penjualan tp
 ##
 
 # 1. menambahkan data supplier
-SELECT * FROM tb_pemasok;
+SELECT *
+FROM tb_pemasok;
 CREATE OR REPLACE PROCEDURE InsertSupplier(
     IN id VARCHAR(5),
     IN nama VARCHAR(50),
@@ -228,7 +229,8 @@ END;
 CALL InsertSupplier('EX1', 'Brg 1', 'Alamat 1', '08123123123', 'Ucup');
 
 # 2. Menghapus data karyawan
-SELECT * FROM tb_karyawan;
+SELECT *
+FROM tb_karyawan;
 INSERT INTO tb_karyawan VALUE ('EX-1', 'Ucup', '08123123', 'kasir', 'kasir');
 
 CREATE OR REPLACE PROCEDURE DeleteEmployee(IN paramNik VARCHAR(10))
@@ -239,18 +241,20 @@ END;
 CALL DeleteEmployee('EX-1');
 
 # 3. Satu fungsi string supplier
-SELECT * FROM tb_pemasok;
+SELECT *
+FROM tb_pemasok;
 CREATE OR REPLACE PROCEDURE SupplierNameUpper(IN idSupplier VARCHAR(5))
 BEGIN
-   SELECT UPPER(nama_pemasok) FROM tb_pemasok WHERE id_pemasok = idSupplier;
+    SELECT UPPER(nama_pemasok) FROM tb_pemasok WHERE id_pemasok = idSupplier;
 END;
 
 CALL SupplierNameUpper('EX1');
 
 # 4. Query User Define Function untuk menampilkan total penjualan berdasarkan tgl penjualan\
-SELECT * FROM tb_penjualan;
+SELECT *
+FROM tb_penjualan;
 CREATE OR REPLACE FUNCTION TotalPenjualan(paramTglJual DATE)
-RETURNS INT
+    RETURNS INT
 BEGIN
     DECLARE totalJual INT;
     SELECT SUM(total_jual) INTO totalJual FROM tb_penjualan WHERE tgl_jual = paramTglJual;
