@@ -154,7 +154,7 @@ ORDER BY stok DESC;
 # Praktikum 5
 # 1. membuat user mysql baru. nama 'user_kasir2' password 'kasir2' hak akses update tabel tb_produk
 CREATE USER 'user_kasir2'@'localhost' IDENTIFIED BY 'kasir2';
-GRANT UPDATE ON matkul_basis_data.tb_produk TO 'user_kasir2'@'localhost';
+GRANT UPDATE ON tb_produk TO 'user_kasir2'@'localhost';
 # 2 input penjualan dan detail_penjualan minimal 5 record
 INSERT INTO tb_penjualan
 VALUES ('tr-1', '2022-11-01', 'KRY-4', 'C-2', '30200000'),
@@ -215,6 +215,9 @@ FROM tb_penjualan tp
 # 1. menambahkan data supplier
 SELECT *
 FROM tb_pemasok;
+DELETE
+FROM tb_pemasok
+WHERE id_pemasok = 'EX1';
 CREATE OR REPLACE PROCEDURE InsertSupplier(
     IN id VARCHAR(5),
     IN nama VARCHAR(50),
@@ -232,7 +235,6 @@ CALL InsertSupplier('EX1', 'Brg 1', 'Alamat 1', '08123123123', 'Ucup');
 SELECT *
 FROM tb_karyawan;
 INSERT INTO tb_karyawan VALUE ('EX-1', 'Ucup', '08123123', 'kasir', 'kasir');
-
 CREATE OR REPLACE PROCEDURE DeleteEmployee(IN paramNik VARCHAR(10))
 BEGIN
     DELETE FROM tb_karyawan WHERE paramNik = nik;
@@ -250,7 +252,7 @@ END;
 
 CALL SupplierNameUpper('EX1');
 
-# 4. Query User Define Function untuk menampilkan total penjualan berdasarkan tgl penjualan\
+# 4. Query User Define Function untuk menampilkan total penjualan berdasarkan tgl penjualan
 SELECT *
 FROM tb_penjualan;
 CREATE OR REPLACE FUNCTION TotalPenjualan(paramTglJual DATE)
@@ -262,3 +264,210 @@ BEGIN
 END;
 
 SELECT TotalPenjualan('2022-11-01');
+
+###
+DELIMITER $$
+CREATE OR REPLACE PROCEDURE TambahPelanggan(
+    IN id VARCHAR(10),
+    IN nama VARCHAR(40),
+    IN alamat VARCHAR(45),
+    IN telepon VARCHAR(15)
+)
+BEGIN
+    INSERT INTO tb_pelanggan
+    VALUES (id,
+            nama,
+            alamat,
+            telepon);
+END$$
+
+/* pemanggilan procedure */
+CALL TambahPelanggan('C-9', 'Kinar Mizania', 'Banjarnegara', 'null');
+
+DELIMITER $$
+CREATE OR REPLACE PROCEDURE UbahPelanggan(
+    IN id VARCHAR(10),
+    IN nama VARCHAR(30), IN alamat VARCHAR(40),
+    IN telepon VARCHAR(15))
+BEGIN
+    UPDATE tb_pelanggan
+    SET nama_pelanggan    = nama,
+        alamat_pelanggan  = alamat,
+        telepon_pelanggan = telepon
+    WHERE id_pelanggan = id;
+END$$
+
+/* pemanggilan procedure */
+CALL UbahPelanggan('C-9', 'Kinara Mazaya', 'Cilacap', '081223344');
+
+DELIMITER $$
+CREATE OR REPLACE PROCEDURE HapusPelanggan(IN id VARCHAR(10))
+BEGIN
+    DELETE FROM tb_pelanggan WHERE id_pelanggan = id;
+END$$
+
+/* pemanggilan procedure */
+CALL HapusPelanggan('C-9');
+
+DELIMITER $$
+CREATE OR REPLACE PROCEDURE jumlahPelanggan(OUT hasil INT)
+BEGIN
+    SELECT COUNT(*) INTO hasil FROM tb_pelanggan;
+END$$
+
+/*pemanggilan procedure dg parameter out*/
+CALL jumlahPelanggan(@Jumlah);
+SELECT @jumlah AS 'jumlahpelanggan';
+
+DELIMITER $$
+CREATE OR REPLACE PROCEDURE jumlahPelanggan2(
+    IN alamat VARCHAR(15),
+    OUT hasil INT)
+BEGIN
+    SELECT COUNT(*)
+    INTO hasil
+    FROM tb_pelanggan
+    WHERE alamat_pelanggan = alamat;
+END$$
+
+/* pemanggilan procedure */
+CALL jumlahPelanggan2('Purwokerto', @n);
+SELECT @n AS 'Jml pelanggan';
+
+SELECT nama_pelanggan, LEFT(nama_pelanggan, 5), RIGHT(nama_pelanggan, 5)
+FROM tb_pelanggan;
+
+SELECT tgl_jual, DATEDIFF(NOW(), tgl_jual)
+FROM tb_penjualan
+WHERE kd_jual = 'tr-3';
+
+SELECT tgl_jual, MONTHNAME(tgl_jual)
+FROM tb_penjualan;
+
+DELIMITER $$
+CREATE OR REPLACE FUNCTION f_jumlahStok(id VARCHAR(5))
+    RETURNS INT
+BEGIN
+    DECLARE jumlah INT;
+    SELECT stok
+    INTO jumlah
+    FROM tb_produk
+    WHERE kd_produk = id;
+    RETURN jumlah;
+END$$
+
+/* pemanggilan function */
+SELECT f_jumlahStok('prd-6');
+
+DELIMITER $$
+CREATE OR REPLACE FUNCTION f_jumlahStok2(id CHAR(3))
+    RETURNS INT
+BEGIN
+    DECLARE jumlah INT;
+    SELECT SUM(stok)
+    INTO jumlah
+    FROM tb_produk
+    WHERE id_kategori = id;
+    RETURN jumlah;
+END$$
+
+/* pemanggilan function */
+SELECT f_jumlahStok2('K7');
+
+
+DELIMITER $$
+CREATE OR REPLACE FUNCTION f_hargabarang(pharga INT)
+    RETURNS INT
+BEGIN
+    DECLARE dtbrg INT;
+    SELECT COUNT(harga)
+    INTO dtbrg
+    FROM tb_produk
+    WHERE harga < pharga;
+    RETURN dtbrg;
+END$$
+
+/* pemanggilan function */
+SELECT f_hargabarang(5000000) AS 'jml dara barang dgn harga < 5000000';
+
+# Praktiku 9
+
+# 1 Tuliskan query percabangan (IF) untuk menampilkan bonus dengan ketentuan:
+# • Jika totaljual lebih dari 2 juta bonus = flashdisk
+# • Jika totaljual lebih dari 1 juta bonus = notebook
+# • Jika totaljual lebih dari 500K bonus = ear phone
+# • Selain kondisi diatas maka tidak dapat bonus
+INSERT INTO tb_penjualan value ('EX-1', '2022-12-12', 'KRY-1', 'c-1', 200000);
+DELETE
+FROM tb_penjualan
+where kd_jual = 'EX-1';
+SELECT kd_jual,
+       total_jual,
+       CASE
+           WHEN total_jual >= 2000000 THEN 'flashdisk'
+           WHEN total_jual >= 1000000 THEN 'notebook'
+           WHEN total_jual >= 500000 THEN 'ear phone'
+           ELSE 'tidak dapat bonus'
+           END AS 'Bonus'
+FROM tb_penjualan;
+
+SELECT kd_jual,
+       CASE
+           WHEN sub_total >= 2000000 THEN 'flashdisk'
+           WHEN sub_total >= 1000000 THEN 'notebook'
+           WHEN sub_total >= 500000 THEN 'ear phone'
+           ELSE 'tidak dapat bonus'
+           END AS 'Bonus'
+FROM tb_detail_jual;
+
+# 2 Tuliskan query percabangan untuk menampilkan bonus dengan ketentuan:
+# • Jika subtotal lebih dari 2 juta diskon 15%
+# • Jika subtotal lebih dari lebih dari 1 juta diskon 15%
+# • Jika subtotal lebih dari 500K diskon 5%
+# • Selain kondisi diatas maka tidak dapat diskon
+SELECT kd_jual,
+       sub_total,
+       CASE
+           WHEN sub_total > 2000000 THEN '15%'
+           WHEN sub_total > 1000000 THEN '10%'
+           WHEN sub_total > 500000 THEN '5%'
+           ELSE 'Tidak dapat diskon'
+           END AS 'Diskon'
+FROM tb_detail_jual;
+
+# 3 Tuliskan query untuk menampilkan total produk yang sudah berhasil terjual/belum berhasil terjual
+CREATE OR REPLACE FUNCTION cekTransaction(kdProduct VARCHAR(10))
+    RETURNS VARCHAR(50)
+BEGIN
+    DECLARE totalJual INT;
+    SELECT COUNT(kd_produk) INTO totalJual FROM tb_detail_jual WHERE kd_produk = kdProduct;
+    IF (totalJual > 0) THEN
+        RETURN CONCAT('Produk sudah terjual sebanyak ', totalJual, ' Item');
+    ELSE
+        RETURN 'Produk belum pernah terjual';
+    END IF;
+END;
+
+SELECT kd_produk, COUNT(jumlah)
+FROM tb_detail_jual
+GROUP BY kd_produk;
+
+SELECT cekTransaction('p-3');
+
+# 4 Tuliskan query untuk menampilkan bilangan genap menggunakan statement looping
+CREATE OR REPLACE PROCEDURE genap(IN batas INT)
+BEGIN
+    DECLARE i INT;
+    DECLARE hasil VARCHAR(30) DEFAULT '';
+    SET i = 1;
+    WHILE i < batas
+        DO
+            IF MOD(i, 2) != 1 THEN
+                SET hasil = CONCAT(hasil, i, ' ');
+            END IF;
+            SET i = i + 1;
+        END WHILE;
+    SELECT hasil;
+END;
+
+CALL genap(10);
