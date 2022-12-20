@@ -440,7 +440,7 @@ CREATE OR REPLACE FUNCTION cekTransaction(kdProduct VARCHAR(10))
     RETURNS VARCHAR(50)
 BEGIN
     DECLARE totalJual INT;
-    SELECT COUNT(kd_produk) INTO totalJual FROM tb_detail_jual WHERE kd_produk = kdProduct;
+    SELECT SUM(jumlah) INTO totalJual FROM tb_detail_jual WHERE kd_produk = kdProduct;
     IF (totalJual > 0) THEN
         RETURN CONCAT('Produk sudah terjual sebanyak ', totalJual, ' Item');
     ELSE
@@ -452,7 +452,12 @@ SELECT kd_produk, COUNT(jumlah)
 FROM tb_detail_jual
 GROUP BY kd_produk;
 
-SELECT cekTransaction('p-3');
+select *
+from tb_produk;
+select *
+from tb_detail_jual;
+
+SELECT cekTransaction('p-4');
 
 # 4 Tuliskan query untuk menampilkan bilangan genap menggunakan statement looping
 CREATE OR REPLACE PROCEDURE genap(IN batas INT)
@@ -471,3 +476,112 @@ BEGIN
 END;
 
 CALL genap(10);
+
+# PRAKTIKUM 10
+
+SELECT *
+FROM tb_produk;
+SELECT *
+FROM tb_penjualan;
+SELECT *
+FROM tb_detail_jual;
+
+# 1. Tuliskan query trigger after insert yang berfungsi jika ada penjualan (kita menjual
+#    barang ke pelanggan) maka akan mengurangi stok barang pada tabel produk
+CREATE OR REPLACE TRIGGER pembelian
+    AFTER INSERT
+    ON tb_detail_jual
+    FOR EACH ROW
+BEGIN
+    UPDATE tb_produk SET stok = stok - NEW.jumlah WHERE kd_produk = NEW.kd_produk;
+END;
+
+INSERT INTO tb_penjualan VALUE ('tr-6', '2022-12-19', 'KRY-1', 'C-2', 27000000);
+INSERT INTO tb_detail_jual VALUE ('tr-6', 'p-3', 2, 83000, 166000);
+INSERT INTO tb_detail_jual VALUE ('tr-6', 'p-6', 2, 1600000, 3200000);
+
+# 2. Tuliskan query trigger before insert untuk cek sandi karyawan. Jika panjang
+#    sandi kurang dari 5 karakter maka data tidak dapat ditambahkan ke tabel karyawan.
+CREATE OR REPLACE TRIGGER cekKaryawanPassword
+    BEFORE INSERT
+    ON tb_karyawan
+    FOR EACH ROW
+BEGIN
+    IF length(NEW.sandi) < 5 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'panjang sandi kurang dari 5';
+    END IF;
+END;
+
+SELECT *
+FROM tb_karyawan;
+
+# panjang sandi kurang dari 5 karakter
+INSERT INTO tb_karyawan VALUE ('KRY-6', 'Ucup', '08175355', 'kasir', 'pass');
+
+# panjang sandi lima karakter
+INSERT INTO tb_karyawan VALUE ('KRY-6', 'Ucup', '08175355', 'kasir', 'pass');
+
+DELETE
+FROM tb_karyawan
+WHERE nik = 'KRY-6';
+
+# 3. Tuliskan query trigger before update untuk cek alamat pelanggan. Jika update
+#    alamat berisi null maka data di tabel pelanggan tidak dapat diubah.
+CREATE OR REPLACE TRIGGER updatePelanggan
+    BEFORE UPDATE
+    ON tb_pelanggan
+    FOR EACH ROW
+BEGIN
+    IF NEW.alamat_pelanggan IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'alamat pelanggan tidak boleh kosong';
+    END IF;
+END;
+
+SELECT *
+FROM tb_pelanggan;
+
+# contoh alamat pelanggan kosong
+UPDATE tb_pelanggan
+SET alamat_pelanggan = NULL
+WHERE id_pelanggan = 'C-3';
+# alamat pelanggan diisi
+UPDATE tb_pelanggan
+SET alamat_pelanggan = 'Purbalingga'
+WHERE id_pelanggan = 'C-3';
+
+# 4. Tuliskan query trigger before delete untuk mencegah data pelanggan dihapus
+#    karena merupakan tabel master.
+CREATE OR REPLACE TRIGGER cannotDeleteCustomer
+    BEFORE DELETE
+    ON tb_pelanggan
+    FOR EACH ROW
+BEGIN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'data pelanggan tidak boleh dihapus';
+END;
+
+SELECT *
+FROM tb_pelanggan;
+INSERT INTO tb_pelanggan VALUE ('C-9', 'Ucup Surucup', 'Purbalingga', '083342346547'
+    );
+DELETE
+FROM tb_pelanggan
+WHERE id_pelanggan = 'C-9';
+
+# 5. Tuliskan query trigger after delete pada tabel pemasok. Jika data di tabel
+#    pemasok dihapus maka akan menghapus data di tabel kategori dengan idkategori yang sama.
+CREATE OR REPLACE TRIGGER deleteCategoryAfterSupplier
+    AFTER DELETE
+    ON tb_pemasok
+    FOR EACH ROW
+BEGIN
+    DELETE FROM tb_kategori WHERE id_pemasok = OLD.id_pemasok;
+END;
+
+SELECT * FROM tb_pemasok;
+SELECT * FROM tb_kategori;
+
+DELETE FROM tb_pemasok WHERE id_pemasok = 'Spl-8';
+
+INSERT INTO tb_pemasok VALUE ('Spl-8', 'PT Ucup Group Indonesia', 'Ds. Mojosari RT04, Bantul, Yogyakarta', '081888999', 'Davino Suhardjo'
+);
+INSERT INTO tb_kategori VALUE ('k8', 'Keyboard', 'Spl-8');
