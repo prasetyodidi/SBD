@@ -496,9 +496,9 @@ BEGIN
     UPDATE tb_produk SET stok = stok - NEW.jumlah WHERE kd_produk = NEW.kd_produk;
 END;
 
-INSERT INTO tb_penjualan VALUE ('tr-6', '2022-12-19', 'KRY-1', 'C-2', 27000000);
-INSERT INTO tb_detail_jual VALUE ('tr-6', 'p-3', 2, 83000, 166000);
-INSERT INTO tb_detail_jual VALUE ('tr-6', 'p-6', 2, 1600000, 3200000);
+INSERT INTO tb_penjualan VALUE ('tr-7', '2022-12-19', 'KRY-1', 'C-2', 27000000);
+INSERT INTO tb_detail_jual VALUE ('tr-7', 'p-3', 2, 83000, 166000);
+INSERT INTO tb_detail_jual VALUE ('tr-7', 'p-6', 2, 1600000, 3200000);
 
 # 2. Tuliskan query trigger before insert untuk cek sandi karyawan. Jika panjang
 #    sandi kurang dari 5 karakter maka data tidak dapat ditambahkan ke tabel karyawan.
@@ -516,10 +516,10 @@ SELECT *
 FROM tb_karyawan;
 
 # panjang sandi kurang dari 5 karakter
-INSERT INTO tb_karyawan VALUE ('KRY-6', 'Ucup', '08175355', 'kasir', 'pass');
+INSERT INTO tb_karyawan VALUE ('KRY-7', 'Ucup', '08175355', 'kasir', 'pass');
 
 # panjang sandi lima karakter
-INSERT INTO tb_karyawan VALUE ('KRY-6', 'Ucup', '08175355', 'kasir', 'pass');
+INSERT INTO tb_karyawan VALUE ('KRY-7', 'Ucup', '08175355', 'kasir', 'passs');
 
 DELETE
 FROM tb_karyawan
@@ -577,11 +577,274 @@ BEGIN
     DELETE FROM tb_kategori WHERE id_pemasok = OLD.id_pemasok;
 END;
 
-SELECT * FROM tb_pemasok;
-SELECT * FROM tb_kategori;
+SELECT *
+FROM tb_pemasok;
+SELECT *
+FROM tb_kategori;
 
-DELETE FROM tb_pemasok WHERE id_pemasok = 'Spl-8';
+DELETE
+FROM tb_pemasok
+WHERE id_pemasok = 'Spl-8';
 
-INSERT INTO tb_pemasok VALUE ('Spl-8', 'PT Ucup Group Indonesia', 'Ds. Mojosari RT04, Bantul, Yogyakarta', '081888999', 'Davino Suhardjo'
-);
+INSERT INTO tb_pemasok VALUE ('Spl-8', 'PT Ucup Group Indonesia', 'Ds. Mojosari RT04, Bantul, Yogyakarta', '081888999',
+                              'Davino Suhardjo'
+    );
 INSERT INTO tb_kategori VALUE ('k8', 'Keyboard', 'Spl-8');
+
+# Praktikum 11
+
+DELIMITER //
+CREATE OR REPLACE PROCEDURE cur_stokbarang()
+BEGIN
+    DECLARE nama VARCHAR(40);
+    DECLARE stokproduk TINYINT;
+    DECLARE exit_loop BOOLEAN;
+    DECLARE cl CURSOR FOR
+        SELECT nama_produk, stok
+        FROM tb_produk
+        ORDER BY stok;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET exit_loop = TRUE;
+    OPEN cl;
+    1bl:
+    LOOP
+        FETCH cl INTO nama, stokproduk;
+        SELECT nama_produk, stok AS 'daftar 5 produk dengan stok terendah'
+        FROM tb_produk
+        ORDER BY stok
+        LIMIT 5;
+        IF exit_loop THEN
+            CLOSE cl;
+            LEAVE 1bl;
+        END IF;
+    END LOOP 1bl;
+END;
+//
+
+CALL cur_stokbarang();
+
+DESC tb_pemasok;
+
+# 1. Tuliskan query cursor untuk menampung data PIC suplier yang memiliki huruf ‘j’
+DELIMITER $$
+CREATE OR REPLACE PROCEDURE curNamePICSupplier()
+BEGIN
+    DECLARE exitLoop BOOLEAN;
+    DECLARE picName VARCHAR(50);
+    DECLARE cursor1 CURSOR FOR SELECT pic FROM tb_pemasok WHERE pic LIKE '%j%';
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET exitLoop = TRUE;
+
+    OPEN cursor1;
+
+    ulang:
+    LOOP
+        FETCH cursor1 INTO picName;
+        SELECT pic AS 'Nama PIC mengandung huruf \'j\'' FROM tb_pemasok WHERE pic LIKE '%j%';
+        IF exitLoop THEN
+            CLOSE cursor1;
+            LEAVE ulang;
+        END IF;
+    END LOOP ulang;
+END;
+$$
+
+CALL curNamePICSupplier();
+
+SELECT *
+FROM tb_produk;
+SELECT id_kategori, COUNT(id_kategori) AS 'total'
+FROM tb_produk
+GROUP BY id_kategori;
+INSERT INTO tb_produk VALUE ('p-7', 'Produk 7', 'k3', 7, 7000);
+
+# 2. Tuliskan query cursor yang dapat menampung jumlah produk dikelompokkan berdasarkan kategori produk
+DELIMITER $$
+CREATE OR REPLACE PROCEDURE curTotalProductGroupByCategory()
+BEGIN
+    DECLARE exitLoop BOOLEAN;
+    DECLARE total INT;
+    DECLARE categoryId VARCHAR(40);
+    DECLARE cursor1 CURSOR FOR SELECT id_kategori, COUNT(id_kategori) AS 'total' FROM tb_produk GROUP BY id_kategori;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET exitLoop = TRUE;
+
+    OPEN cursor1;
+
+    FETCH cursor1 INTO categoryId, total;
+    SELECT categoryId, total;
+
+    ulang:
+    LOOP
+        FETCH cursor1 INTO categoryId, total;
+        SELECT id_kategori, COUNT(id_kategori) AS 'total' FROM tb_produk GROUP BY id_kategori;
+        IF exitLoop THEN
+            CLOSE cursor1;
+            LEAVE ulang;
+        END IF;
+    END LOOP ulang;
+END;
+$$
+
+CALL curTotalProductGroupByCategory();
+
+# 3. Tuliskan query cursor untuk mengupdate data stok produk menjadi bertambah 5 jika stok barang kurang dari sama dengan 5
+SELECT *
+FROM tb_produk;
+DELIMITER $$
+CREATE OR REPLACE PROCEDURE curUpdateStockIfUnderOrEqualFive()
+BEGIN
+    DECLARE exitLoop BOOLEAN;
+    DECLARE stokk INT;
+    DECLARE cursor1 CURSOR FOR SELECT stok FROM tb_produk WHERE stok <= 5;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET exitLoop = TRUE;
+
+    OPEN cursor1;
+    ulang:
+    LOOP
+        FETCH cursor1 INTO stokk;
+#         SELECT id_kategori, COUNT(id_kategori) AS 'total' FROM tb_produk GROUP BY id_kategori;
+        UPDATE tb_produk SET stok = stok + 5 WHERE stok <= 5;
+        IF exitLoop THEN
+            CLOSE cursor1;
+            LEAVE ulang;
+        END IF;
+    END LOOP ulang;
+END;
+$$
+
+CALL curUpdateStockIfUnderOrEqualFive();
+
+SELECT *
+FROM tb_produk;
+
+# 4. Tuliskan query cursor untuk menampung data total penjualan yang dikelompokkan berdasarkan idpelanggan
+DELIMITER $$
+CREATE OR REPLACE PROCEDURE curTotalSaleGroupByCustomer()
+BEGIN
+    DECLARE exitLoop BOOLEAN;
+    DECLARE total INT;
+    DECLARE pelangganId VARCHAR(40);
+    DECLARE cursor1 CURSOR FOR SELECT id_pelanggan, sum(total_jual) AS 'total' FROM tb_penjualan GROUP BY id_pelanggan;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET exitLoop = TRUE;
+
+    OPEN cursor1;
+
+    ulang:
+    LOOP
+        FETCH cursor1 INTO pelangganId, total;
+        SELECT id_pelanggan, sum(total_jual) AS 'total' FROM tb_penjualan GROUP BY id_pelanggan;
+        IF exitLoop THEN
+            CLOSE cursor1;
+            LEAVE ulang;
+        END IF;
+    END LOOP ulang;
+END;
+$$
+
+CALL curTotalSaleGroupByCustomer();
+
+# 5. Tuliskan query cursor yang dapat menampilkan daftar 3 produk teratas yang banyak terjual
+DELIMITER $$
+CREATE OR REPLACE PROCEDURE curTopThreeSale()
+BEGIN
+    DECLARE exitLoop BOOLEAN;
+    DECLARE total INT;
+    DECLARE pelangganId VARCHAR(40);
+    DECLARE cursor1 CURSOR FOR SELECT kd_produk, sum(jumlah) AS 'total'
+                               FROM tb_detail_jual
+                               GROUP BY kd_produk
+                               ORDER BY count(kd_produk) DESC
+                               LIMIT 3;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET exitLoop = TRUE;
+
+    OPEN cursor1;
+
+    ulang:
+    LOOP
+        FETCH cursor1 INTO pelangganId, total;
+        SELECT kd_produk, count(kd_produk) AS 'total sale'
+        FROM tb_detail_jual
+        GROUP BY kd_produk
+        ORDER BY count(kd_produk) DESC
+        LIMIT 3;
+        IF exitLoop THEN
+            CLOSE cursor1;
+            LEAVE ulang;
+        END IF;
+    END LOOP ulang;
+END;
+$$
+
+CALL curTopThreeSale();
+
+# Praktikum 12
+use mysql;
+select *
+from user;
+create user 'didi'@'localhost' identified by 'password';
+grant all on matkul_basis_data.* to 'didi'@'localhost';
+
+use matkul_basis_data;
+
+lock tables tb_detail_jual write;
+unlock tables;
+
+start transaction ;
+select * from tb_produk where kd_produk = 'P-1' ;
+update tb_produk set stok = 10 where kd_produk = 'P-1';
+commit;
+
+select *
+from tb_penjualan;
+select * from tb_produk;
+select * from tb_pelanggan;
+
+# 1. Tuliskan implementasi query TCL (commit, rollback, rollback to save point) selain dari yg sudah dicontohkan di modul
+# commit
+START TRANSACTION;
+INSERT INTO tb_penjualan VALUE ('tr-9', '2022-11-01', 'KRY-4', 'C-2', '30200000');
+INSERT INTO tb_detail_jual
+VALUES ('tr-9', 'p-6', '2', '1600000', '3200000'),
+       ('tr-9', 'p-1', '1', '27000000', '27000000'),
+       ('tr-9', 'p-1', '1', '27000000', '27000000');
+update tb_produk set stok = stok - 2 where kd_produk = 'p-6';
+update tb_produk set stok = stok - 1 where kd_produk = 'p-1';
+update tb_produk set stok = stok - 1 where kd_produk = 'p-1';
+commit ;
+
+# rollback
+START TRANSACTION;
+INSERT INTO tb_detail_jual
+VALUES ('tr-9', 'p-6', '2', '1600000', '3200000'),
+       ('tr-9', 'p-1', '1', '27000000', '27000000'),
+       ('tr-9', 'p-1', '1', '27000000', '27000000');
+update tb_produk set stok = stok - 2 where kd_produk = 'p-6';
+update tb_produk set stok = stok - 1 where kd_produk = 'p-1';
+update tb_produk set stok = stok - 1 where kd_produk = 'p-1';
+rollback ;
+
+# roolback to save pint
+START TRANSACTION;
+INSERT INTO tb_detail_jual
+VALUE ('tr-9', 'p-6', '2', '1600000', '3200000');
+update tb_produk set stok = stok - 2 where kd_produk = 'p-6';
+savepoint one;
+INSERT INTO tb_detail_jual
+VALUE ('tr-9', 'p-1', '1', '27000000', '27000000');
+update tb_produk set stok = stok - 1 where kd_produk = 'p-1';
+rollback to savepoint one;
+
+
+# 2. Tuliskan implementasi query locking (table level, row level dan deadlock) selain dari yg sudah dicontohkan di modul
+# table level
+lock tables tb_produk write ;
+unlock tables;
+
+# row level
+set autocommit = 0;
+start transaction ;
+select * from tb_produk where kd_produk = 'p-1' for update ;
+commit ;
+
+# deadlock
+start transaction ;
+update tb_pelanggan set nama_pelanggan = 'ucup' where id_pelanggan = 'C-9';
+commit ;
